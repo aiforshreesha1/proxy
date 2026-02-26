@@ -1,0 +1,445 @@
+{
+  "_doc": "Universal LLM Proxy config — supports THREE credential types per provider. model_map is always optional.",
+
+  "server": {
+    "host": "localhost",
+    "port": 8000
+  },
+
+  "defaults": {
+    "provider": "openrouter",
+    "retry_on_codes": [429, 500, 502, 503, 504],
+    "max_retries": 3,
+    "timeout_seconds": 120
+  },
+
+  "_credential_types_explained": {
+    "api_key": "Classic API key string. Goes into x-api-key (Anthropic), x-goog-api-key (Gemini), or Authorization: Bearer (OpenAI-compatible).",
+    "oauth_token_files": [
+      "Array of paths to JSON token files saved to disk by your CLI tool login.",
+      "Each file must have at least: { 'access_token': '...' }",
+      "Optional fields for auto-refresh: 'refresh_token', 'expires_at' (Unix timestamp), 'provider'.",
+      "The proxy auto-refreshes expired tokens using the known endpoint for each provider.",
+      "Multiple files = multiple accounts = round-robin load balancing.",
+      "How each provider saves tokens:",
+      "  Claude Code   → run 'claude login' → ~/.claude.json  (or copy to your auth dir)",
+      "  OpenAI Codex  → run 'codex login'  → ~/.codex/auth.json",
+      "  Gemini CLI    → run 'gemini login'  → ~/.gemini/oauth_creds.json",
+      "  Qwen Code     → run 'qwen login'    → ~/.qwen/token.json",
+      "  iFlow         → browser cookie flow → see 'oauth_bearer_tokens' instead"
+    ],
+    "oauth_bearer_tokens": [
+      "Array of raw bearer token strings.",
+      "No auto-refresh — you manage rotation manually.",
+      "Use for: iFlow cookie-derived tokens, any short-lived token you want to supply directly.",
+      "Also works for any provider where you just want to paste a token without a file."
+    ],
+    "_mixing": "All three can coexist in the same provider. Round-robin cycles across them."
+  },
+
+  "_oauth_token_file_format": {
+    "_note": "Save this shape to a .json file and point oauth_token_files at it.",
+    "access_token": "sk-ant-oat01-REPLACE_WITH_REAL_TOKEN",
+    "refresh_token": "sk-ant-ort01-REPLACE_WITH_REAL_REFRESH",
+    "expires_at": 0,
+    "token_type": "Bearer",
+    "provider": "claude",
+    "email": "you@example.com",
+    "_meta": {
+      "_note": "Override refresh endpoint/client_id per-file if you need custom auth servers.",
+      "token_endpoint": "",
+      "client_id": ""
+    }
+  },
+
+  "providers": [
+
+    {
+      "_section": "═══ FREE / OAUTH PROVIDERS ═══════════════════════════════════════"
+    },
+
+    {
+      "name": "claude_oauth",
+      "_description": "Claude Code via OAuth subscription (free tier / Pro / Max). No API key needed.",
+      "_how_to_get_token": [
+        "1. Install Claude Code CLI:  npm install -g @anthropic-ai/claude-code",
+        "2. Login:                    claude login",
+        "3. Token saved at:           ~/.claude.json",
+        "4. Extract the token file:   cp ~/.claude.json ./auths/claude-account1.json",
+        "5. Add more accounts:        repeat with a different browser/account",
+        "",
+        "Token file shape (from ~/.claude.json):",
+        "  { 'claudeAiOauthToken': { 'access_token': 'sk-ant-oat01-...', 'refresh_token': 'sk-ant-ort01-...', 'expires_at': 1234567890 } }",
+        "",
+        "The proxy reads both flat { access_token: '...' } and nested { claudeAiOauthToken: { access_token: '...' } } formats.",
+        "",
+        "Auto-refresh uses: POST https://claude.ai/api/oauth/token",
+        "  grant_type=refresh_token&refresh_token=<rt>&client_id=9d1c250a-e61b-44d9-88ed-5944d1962f5e"
+      ],
+      "enabled": true,
+      "base_url": "https://api.anthropic.com",
+      "native_format": "anthropic",
+      "api_keys": [],
+      "oauth_token_files": [
+        "~/.claude.json",
+        "./auths/claude-account2.json",
+        "./auths/claude-account3.json"
+      ],
+      "oauth_bearer_tokens": [],
+      "extra_headers": {
+        "anthropic-version": "2023-06-01",
+        "anthropic-beta": "claude-code-20250219"
+      },
+      "primary_models": ["claude-sonnet-4-6"],
+      "secondary_models": ["claude-opus-4-6", "claude-3-5-sonnet-20241022"],
+      "supported_models": [
+        "claude-opus-4-6", "claude-sonnet-4-6", "claude-haiku-4-5-20251001",
+        "claude-3-5-sonnet-20241022", "claude-3-5-haiku-20241022",
+        "claude-3-opus-20240229", "claude-3-haiku-20240307"
+      ],
+      "model_map": {}
+    },
+
+    {
+      "name": "codex_oauth",
+      "_description": "OpenAI Codex via ChatGPT Plus/Pro subscription OAuth. No API key needed.",
+      "_how_to_get_token": [
+        "1. Install Codex CLI:  npm install -g @openai/codex",
+        "2. Login:              codex login",
+        "3. Token saved at:     ~/.codex/auth.json",
+        "4. Copy to auths dir:  cp ~/.codex/auth.json ./auths/codex-account1.json",
+        "",
+        "Auto-refresh uses: POST https://auth.openai.com/oauth/token",
+        "  grant_type=refresh_token&refresh_token=<rt>&client_id=app_EMOhFvvMY2qAMolFAJO2bEip"
+      ],
+      "enabled": true,
+      "base_url": "https://api.openai.com",
+      "native_format": "openai",
+      "api_keys": [],
+      "oauth_token_files": [
+        "~/.codex/auth.json",
+        "./auths/codex-account2.json"
+      ],
+      "oauth_bearer_tokens": [],
+      "extra_headers": {},
+      "primary_models": ["gpt-4o"],
+      "secondary_models": ["gpt-4o-mini", "gpt-4-turbo"],
+      "supported_models": ["gpt-4o","gpt-4o-mini","gpt-4-turbo","gpt-3.5-turbo","o3","o4-mini","o1","o1-mini"],
+      "model_map": {}
+    },
+
+    {
+      "name": "gemini_oauth",
+      "_description": "Gemini CLI via Google account OAuth. Free tier = Gemini 2.5 Pro.",
+      "_how_to_get_token": [
+        "1. Install Gemini CLI:  npm install -g @google/generative-ai-cli  (or brew install gemini-cli)",
+        "2. Login:               gemini login",
+        "3. Token saved at:      ~/.gemini/oauth_creds.json  (or ~/.config/gemini/credentials.json)",
+        "4. Copy to auths dir:   cp ~/.gemini/oauth_creds.json ./auths/gemini-account1.json",
+        "",
+        "Auto-refresh uses: POST https://oauth2.googleapis.com/token",
+        "  grant_type=refresh_token&refresh_token=<rt>&client_id=<id from token file>"
+      ],
+      "enabled": true,
+      "base_url": "https://generativelanguage.googleapis.com",
+      "native_format": "gemini",
+      "api_keys": [],
+      "oauth_token_files": [
+        "~/.gemini/oauth_creds.json",
+        "./auths/gemini-account2.json"
+      ],
+      "oauth_bearer_tokens": [],
+      "extra_headers": {},
+      "primary_models": ["gemini-2.5-pro"],
+      "secondary_models": ["gemini-2.0-flash","gemini-1.5-flash"],
+      "supported_models": ["gemini-2.5-flash","gemini-2.5-pro","gemini-2.0-flash","gemini-1.5-flash","gemini-1.5-pro"],
+      "model_map": {
+        "gpt-4o":                     "gemini-2.0-flash",
+        "gpt-4o-mini":                "gemini-1.5-flash",
+        "claude-3-5-sonnet-20241022": "gemini-2.5-pro",
+        "claude-3-5-haiku-20241022":  "gemini-2.0-flash"
+      }
+    },
+
+    {
+      "name": "qwen_oauth",
+      "_description": "Qwen Code via Alibaba Cloud OAuth. Free tier available.",
+      "_how_to_get_token": [
+        "1. Install Qwen Code CLI:  npm install -g qwen-code  (or use the CLIProxyAPI login helper)",
+        "2. Login via device flow:  qwen --login",
+        "3. Token saved at:         ~/.qwen/token.json",
+        "4. Copy:                   cp ~/.qwen/token.json ./auths/qwen-account1.json",
+        "",
+        "Auto-refresh uses: POST https://account.aliyun.com/oauth2/token"
+      ],
+      "enabled": false,
+      "base_url": "https://dashscope.aliyuncs.com/compatible-mode",
+      "native_format": "openai",
+      "api_keys": [],
+      "oauth_token_files": [
+        "~/.qwen/token.json",
+        "./auths/qwen-account2.json"
+      ],
+      "oauth_bearer_tokens": [],
+      "extra_headers": {},
+      "primary_models": ["qwen3-coder-plus"],
+      "secondary_models": ["qwen3-coder-480b-a22b","qwen3-235b-a22b"],
+      "supported_models": [],
+      "model_map": {}
+    },
+
+    {
+      "name": "iflow",
+      "_description": "iFlow (Z.ai / GLM) via browser cookie. Uses bearer tokens (no auto-refresh).",
+      "_how_to_get_token": [
+        "Option A — Cookie extraction:",
+        "  1. Open https://iflow.cn (or https://z.ai) in browser and log in.",
+        "  2. Open DevTools → Application → Cookies.",
+        "  3. Copy the full cookie string (all cookies for the domain).",
+        "  4. Use CLIProxyAPI's cookie endpoint OR just add the token to oauth_bearer_tokens.",
+        "",
+        "Option B — Use CLIProxyAPI to exchange cookie for API token:",
+        "  curl -X POST http://localhost:8317/v0/management/iflow-auth-url \\",
+        "    -H 'Authorization: Bearer <mgmt_key>' \\",
+        "    -d '{\"cookie\":\"<YOUR_IFLOW_COOKIE>\"}'",
+        "  → saves iflow-user.json to auth-dir",
+        "",
+        "Note: iFlow tokens expire. Re-run when they stop working.",
+        "The 'provider' field inside the token is 'iflow' so auto-refresh is skipped (no public refresh endpoint)."
+      ],
+      "enabled": true,
+      "base_url": "https://api.iflow.cn",
+      "native_format": "openai",
+      "api_keys": [],
+      "oauth_token_files": [
+        "./auths/iflow-account1.json"
+      ],
+      "oauth_bearer_tokens": [
+        "REPLACE_IFLOW_BEARER_TOKEN_1",
+        "REPLACE_IFLOW_BEARER_TOKEN_2"
+      ],
+      "extra_headers": {},
+      "primary_models": ["glm-4.7"],
+      "secondary_models": ["tstars2.0","glm-4-flash"],
+      "supported_models": [],
+      "model_map": {}
+    },
+
+    {
+      "name": "antigravity_oauth",
+      "_description": "Antigravity (Hailuo / MiniMax) — free Gemini-class model via OAuth.",
+      "_how_to_get_token": [
+        "1. Login via CLIProxyAPI:  ./CLIProxyAPI --antigravity-login",
+        "   (or use the management API: GET /v0/management/antigravity-auth-url)",
+        "2. Token saved at:         ~/.cli-proxy-api/antigravity-*.json",
+        "3. Copy to your auths dir: cp ~/.cli-proxy-api/antigravity-*.json ./auths/"
+      ],
+      "enabled": false,
+      "base_url": "https://api.hailuo.ai",
+      "native_format": "anthropic",
+      "api_keys": [],
+      "oauth_token_files": [
+        "~/.cli-proxy-api/antigravity-account1.json",
+        "./auths/antigravity-account2.json"
+      ],
+      "oauth_bearer_tokens": [],
+      "extra_headers": {},
+      "primary_models": ["gemini-2.5-pro"],
+      "secondary_models": [],
+      "supported_models": [],
+      "model_map": {}
+    },
+
+    {
+      "_section": "═══ CLASSIC API KEY PROVIDERS ═════════════════════════════════════"
+    },
+
+    {
+      "name": "openrouter",
+      "_description": "OpenRouter — many models, API key auth. Free tier available with :free models.",
+      "enabled": true,
+      "base_url": "https://openrouter.ai/api/v1",
+      "native_format": "openai",
+      "api_keys": [
+        "sk-or-v1-REPLACE_KEY_1",
+        "sk-or-v1-REPLACE_KEY_2",
+        "sk-or-v1-REPLACE_KEY_3"
+      ],
+      "oauth_token_files": [],
+      "oauth_bearer_tokens": [],
+      "extra_headers": {
+        "HTTP-Referer": "http://localhost",
+        "X-Title": "local-proxy"
+      },
+      "primary_models": [
+        "google/gemini-flash-1.5-8b",
+        "meta-llama/llama-3.1-8b-instruct:free",
+        "mistralai/mistral-7b-instruct:free"
+      ],
+      "secondary_models": [
+        "google/gemini-flash-1.5",
+        "anthropic/claude-3.5-haiku",
+        "openai/gpt-4o-mini"
+      ],
+      "supported_models": [],
+      "model_map": {
+        "claude-3-5-sonnet-20241022": "anthropic/claude-3.5-sonnet",
+        "claude-3-5-haiku-20241022":  "anthropic/claude-3.5-haiku",
+        "claude-opus-4-6":            "anthropic/claude-opus-4",
+        "gpt-4o":                     "openai/gpt-4o",
+        "gpt-4o-mini":                "openai/gpt-4o-mini",
+        "gemini-2.5-flash":           "google/gemini-flash-1.5",
+        "gemini-2.0-flash":           "google/gemini-flash-1.5-8b"
+      }
+    },
+
+    {
+      "name": "groq",
+      "_description": "Groq — very fast inference, generous free tier.",
+      "enabled": true,
+      "base_url": "https://api.groq.com/openai/v1",
+      "native_format": "openai",
+      "api_keys": [
+        "gsk_REPLACE_KEY_1",
+        "gsk_REPLACE_KEY_2",
+        "gsk_REPLACE_KEY_3"
+      ],
+      "oauth_token_files": [],
+      "oauth_bearer_tokens": [],
+      "extra_headers": {},
+      "primary_models": ["llama-3.1-8b-instant"],
+      "secondary_models": ["llama-3.3-70b-versatile","gemma2-9b-it","mixtral-8x7b-32768"],
+      "supported_models": [
+        "llama-3.1-8b-instant","llama-3.1-70b-versatile",
+        "llama-3.3-70b-versatile","gemma2-9b-it","mixtral-8x7b-32768"
+      ],
+      "model_map": {
+        "gpt-4o":                     "llama-3.3-70b-versatile",
+        "gpt-4o-mini":                "llama-3.1-8b-instant",
+        "claude-3-5-haiku-20241022":  "gemma2-9b-it",
+        "claude-3-5-sonnet-20241022": "llama-3.3-70b-versatile"
+      }
+    },
+
+    {
+      "name": "ollama",
+      "_description": "Ollama — local models OR Ollama.com cloud. Replace keys with your Ollama.com API keys.",
+      "enabled": true,
+      "base_url": "https://ollama.com",
+      "native_format": "openai",
+      "api_keys": [
+        "a.b",
+        "a.b"
+      ],
+      "oauth_token_files": [],
+      "oauth_bearer_tokens": [],
+      "extra_headers": {},
+      "primary_models": ["llama3.2:3b","gemma3:4b","qwen2.5:7b"],
+      "secondary_models": ["llama3.1:8b","mistral:7b"],
+      "supported_models": [],
+      "model_map": {
+        "gpt-4o":                     "llama3.1:8b",
+        "gpt-4o-mini":                "llama3.2:3b",
+        "claude-3-5-haiku-20241022":  "gemma3:4b",
+        "claude-3-5-sonnet-20241022": "llama3.1:8b"
+      }
+    },
+
+    {
+      "name": "together",
+      "enabled": false,
+      "base_url": "https://api.together.xyz/v1",
+      "native_format": "openai",
+      "api_keys": ["REPLACE_TOGETHER_KEY_1"],
+      "oauth_token_files": [],
+      "oauth_bearer_tokens": [],
+      "extra_headers": {},
+      "primary_models": ["meta-llama/Meta-Llama-3.1-8B-Instruct-Turbo"],
+      "secondary_models": ["meta-llama/Meta-Llama-3.1-70B-Instruct-Turbo"],
+      "supported_models": [],
+      "model_map": {}
+    },
+
+    {
+      "name": "anthropic",
+      "_description": "Direct Anthropic API — classic API key auth.",
+      "enabled": false,
+      "base_url": "https://api.anthropic.com",
+      "native_format": "anthropic",
+      "api_keys": ["sk-ant-REPLACE_KEY_1","sk-ant-REPLACE_KEY_2"],
+      "oauth_token_files": [],
+      "oauth_bearer_tokens": [],
+      "extra_headers": {"anthropic-version":"2023-06-01"},
+      "primary_models": ["claude-3-5-haiku-20241022"],
+      "secondary_models": ["claude-3-5-sonnet-20241022","claude-opus-4-6"],
+      "supported_models": [
+        "claude-opus-4-6","claude-sonnet-4-6","claude-haiku-4-5-20251001",
+        "claude-3-5-sonnet-20241022","claude-3-5-haiku-20241022",
+        "claude-3-opus-20240229","claude-3-haiku-20240307"
+      ],
+      "model_map": {}
+    },
+
+    {
+      "name": "openai",
+      "_description": "Direct OpenAI API — classic API key auth.",
+      "enabled": false,
+      "base_url": "https://api.openai.com",
+      "native_format": "openai",
+      "api_keys": ["sk-proj-REPLACE_KEY_1","sk-proj-REPLACE_KEY_2"],
+      "oauth_token_files": [],
+      "oauth_bearer_tokens": [],
+      "extra_headers": {},
+      "primary_models": ["gpt-4o-mini"],
+      "secondary_models": ["gpt-4o","gpt-3.5-turbo"],
+      "supported_models": ["gpt-4o","gpt-4o-mini","gpt-4-turbo","gpt-3.5-turbo","o3","o4-mini","o1","o1-mini"],
+      "model_map": {}
+    },
+
+    {
+      "name": "gemini",
+      "_description": "Direct Gemini API — classic API key auth.",
+      "enabled": false,
+      "base_url": "https://generativelanguage.googleapis.com",
+      "native_format": "gemini",
+      "api_keys": ["AIza-REPLACE_KEY_1","AIza-REPLACE_KEY_2"],
+      "oauth_token_files": [],
+      "oauth_bearer_tokens": [],
+      "extra_headers": {},
+      "primary_models": ["gemini-2.0-flash"],
+      "secondary_models": ["gemini-1.5-flash","gemini-2.5-flash"],
+      "supported_models": ["gemini-2.5-flash","gemini-2.5-pro","gemini-2.0-flash","gemini-1.5-flash","gemini-1.5-pro"],
+      "model_map": {
+        "gpt-4o":                     "gemini-2.0-flash",
+        "gpt-4o-mini":                "gemini-1.5-flash",
+        "claude-3-5-sonnet-20241022": "gemini-2.5-pro"
+      }
+    },
+
+    {
+      "_section": "═══ MIXED EXAMPLE (API key + OAuth file in same provider) ═════════",
+      "name": "mixed_example",
+      "_description": "Example: use API keys AND OAuth token files together. Round-robin across all.",
+      "enabled": false,
+      "base_url": "https://api.anthropic.com",
+      "native_format": "anthropic",
+      "api_keys": [
+        "sk-ant-api-KEY_1",
+        "sk-ant-api-KEY_2"
+      ],
+      "oauth_token_files": [
+        "~/.claude.json",
+        "./auths/claude-work-account.json"
+      ],
+      "oauth_bearer_tokens": [
+        "sk-ant-oat01-MANUALLY_PASTED_TOKEN"
+      ],
+      "extra_headers": {"anthropic-version":"2023-06-01"},
+      "primary_models": ["claude-3-5-sonnet-20241022"],
+      "secondary_models": [],
+      "supported_models": [],
+      "model_map": {}
+    }
+
+  ]
+}

@@ -1,0 +1,232 @@
+{
+  "_comment": "Universal LLM Proxy Config — add/remove providers freely",
+
+  "server": {
+    "host": "localhost",
+    "port": 8000,
+    "log_level": "info"
+  },
+
+  "defaults": {
+    "from_format": "auto",
+    "to_provider": "openrouter",
+    "retry_on_codes": [429, 500, 502, 503, 504],
+    "max_retries": 3,
+    "timeout_seconds": 120
+  },
+
+  "providers": [
+
+    {
+      "name": "openrouter",
+      "enabled": true,
+      "base_url": "https://openrouter.ai/api/v1",
+      "native_format": "openai",
+      "api_keys": [
+        "sk-or-v1-REPLACE_KEY_1",
+        "sk-or-v1-REPLACE_KEY_2",
+        "sk-or-v1-REPLACE_KEY_3"
+      ],
+      "extra_headers": {
+        "HTTP-Referer": "http://localhost",
+        "X-Title": "local-proxy"
+      },
+      "primary_models": [
+        "google/gemini-flash-1.5-8b",
+        "meta-llama/llama-3.1-8b-instruct:free",
+        "mistralai/mistral-7b-instruct:free"
+      ],
+      "secondary_models": [
+        "google/gemini-flash-1.5",
+        "anthropic/claude-3.5-haiku",
+        "openai/gpt-4o-mini"
+      ],
+      "supported_models": [],
+      "_comment_models": "Empty list = accept any model name (provider handles it)",
+      "model_map": {
+        "claude-3-5-sonnet-20241022": "anthropic/claude-3.5-sonnet",
+        "claude-3-5-haiku-20241022": "anthropic/claude-3.5-haiku",
+        "claude-opus-4-6": "anthropic/claude-opus-4",
+        "gpt-4o": "openai/gpt-4o",
+        "gemini-2.5-flash": "google/gemini-flash-1.5"
+      }
+    },
+
+    {
+      "name": "ollama_cloud",
+      "enabled": true,
+      "base_url": "https://ollama.com",
+      "native_format": "openai",
+      "api_keys": [
+        "REPLACE_OLLAMA_KEY_1",
+        "REPLACE_OLLAMA_KEY_2"
+      ],
+      "extra_headers": {},
+      "primary_models": [
+        "llama3.2:3b",
+        "gemma3:4b",
+        "qwen2.5:7b"
+      ],
+      "secondary_models": [
+        "llama3.1:8b",
+        "mistral:7b"
+      ],
+      "supported_models": [],
+      "model_map": {
+        "gpt-4o": "llama3.1:8b",
+        "gpt-4o-mini": "llama3.2:3b",
+        "claude-3-5-haiku-20241022": "gemma3:4b"
+      }
+    },
+
+    {
+      "name": "lightning_ai",
+      "enabled": false,
+      "base_url": "https://api.lightning.ai/v1",
+      "native_format": "openai",
+      "api_keys": [
+        "REPLACE_LIGHTNING_KEY_1"
+      ],
+      "extra_headers": {},
+      "primary_models": [
+        "meta-llama/Meta-Llama-3.1-8B-Instruct-Turbo"
+      ],
+      "secondary_models": [],
+      "supported_models": [],
+      "model_map": {}
+    },
+
+    {
+      "name": "anthropic",
+      "enabled": false,
+      "base_url": "https://api.anthropic.com",
+      "native_format": "anthropic",
+      "api_keys": [
+        "sk-ant-REPLACE_KEY_1",
+        "sk-ant-REPLACE_KEY_2"
+      ],
+      "extra_headers": {
+        "anthropic-version": "2023-06-01"
+      },
+      "primary_models": [
+        "claude-3-5-haiku-20241022"
+      ],
+      "secondary_models": [
+        "claude-3-5-sonnet-20241022"
+      ],
+      "supported_models": [
+        "claude-opus-4-6",
+        "claude-sonnet-4-6",
+        "claude-haiku-4-5-20251001",
+        "claude-3-5-sonnet-20241022",
+        "claude-3-5-haiku-20241022",
+        "claude-3-opus-20240229",
+        "claude-3-haiku-20240307"
+      ],
+      "model_map": {}
+    },
+
+    {
+      "name": "openai",
+      "enabled": false,
+      "base_url": "https://api.openai.com",
+      "native_format": "openai",
+      "api_keys": [
+        "sk-proj-REPLACE_KEY_1"
+      ],
+      "extra_headers": {},
+      "primary_models": [
+        "gpt-4o-mini"
+      ],
+      "secondary_models": [
+        "gpt-4o"
+      ],
+      "supported_models": [
+        "gpt-4o",
+        "gpt-4o-mini",
+        "gpt-4-turbo",
+        "gpt-3.5-turbo",
+        "o3",
+        "o4-mini"
+      ],
+      "model_map": {}
+    },
+
+    {
+      "name": "gemini",
+      "enabled": false,
+      "base_url": "https://generativelanguage.googleapis.com",
+      "native_format": "gemini",
+      "api_keys": [
+        "AIza-REPLACE_KEY_1",
+        "AIza-REPLACE_KEY_2"
+      ],
+      "extra_headers": {},
+      "primary_models": [
+        "gemini-2.0-flash"
+      ],
+      "secondary_models": [
+        "gemini-1.5-flash"
+      ],
+      "supported_models": [
+        "gemini-2.5-flash",
+        "gemini-2.5-pro",
+        "gemini-2.0-flash",
+        "gemini-1.5-flash",
+        "gemini-1.5-pro"
+      ],
+      "model_map": {
+        "gpt-4o": "gemini-2.0-flash",
+        "claude-3-5-sonnet-20241022": "gemini-2.5-pro"
+      }
+    },
+
+    {
+      "name": "together_ai",
+      "enabled": false,
+      "base_url": "https://api.together.xyz/v1",
+      "native_format": "openai",
+      "api_keys": [
+        "REPLACE_TOGETHER_KEY_1"
+      ],
+      "extra_headers": {},
+      "primary_models": [
+        "meta-llama/Meta-Llama-3.1-8B-Instruct-Turbo",
+        "mistralai/Mistral-7B-Instruct-v0.2"
+      ],
+      "secondary_models": [
+        "meta-llama/Meta-Llama-3.1-70B-Instruct-Turbo"
+      ],
+      "supported_models": [],
+      "model_map": {
+        "gpt-4o": "meta-llama/Meta-Llama-3.1-70B-Instruct-Turbo",
+        "gpt-4o-mini": "meta-llama/Meta-Llama-3.1-8B-Instruct-Turbo"
+      }
+    },
+
+    {
+      "name": "groq",
+      "enabled": false,
+      "base_url": "https://api.groq.com/openai/v1",
+      "native_format": "openai",
+      "api_keys": [
+        "gsk_REPLACE_KEY_1",
+        "gsk_REPLACE_KEY_2"
+      ],
+      "extra_headers": {},
+      "primary_models": [
+        "llama-3.1-8b-instant"
+      ],
+      "secondary_models": [
+        "llama-3.3-70b-versatile",
+        "gemma2-9b-it"
+      ],
+      "supported_models": [],
+      "model_map": {
+        "gpt-4o": "llama-3.3-70b-versatile",
+        "gpt-4o-mini": "llama-3.1-8b-instant",
+        "claude-3-5-haiku-20241022": "gemma2-9b-it"
+      }
+    }
+  ]
+}
